@@ -4,11 +4,10 @@ using System.Collections.Generic;
 namespace HungNT.EventBus
 {
     /// <summary>
-    /// Global event bus (singleton): type-safe pub/sub dùng struct events.
-    /// Tự bỏ qua listener bị destroy khi Dispatch, không crash.
-    /// Nên Unregister trong OnDestroy để giữ list gọn.
+    /// Implementation của <see cref="IEventBus"/> — plain C#, do container tạo và dọn.
+    /// Tự bỏ qua listener là <c>UnityEngine.Object</c> đã bị destroy khi Dispatch, không crash.
     /// </summary>
-    public class EventBus : MonoSingleton<EventBus>
+    public class EventBus : IEventBus, IDisposable
     {
         // Dùng List<Delegate> thay multicast delegate để tránh alloc trên dispatch path (không gọi GetInvocationList)
         private readonly Dictionary<Type, List<Delegate>> _handlers = new();
@@ -18,16 +17,15 @@ namespace HungNT.EventBus
         private readonly HashSet<Type> _dirtyTypes = new();
         private int _dispatchDepth;
 
-        protected override void OnDestroy()
+        /// <summary>Container gọi khi scope chứa bus này chết — mọi listener của scope biến mất cùng lúc.</summary>
+        public void Dispose()
         {
-            base.OnDestroy();
             _handlers.Clear();
             _dirtyTypes.Clear();
         }
 
         #region === REGISTER / UNREGISTER ===
 
-        /// <summary>Đăng ký lắng nghe <typeparamref name="TEvent"/>. Register trong lúc dispatch: nhận event từ lần dispatch sau.</summary>
         public void Register<TEvent>(Action<TEvent> listener) where TEvent : IEvent
         {
             if (listener == null)
@@ -46,7 +44,6 @@ namespace HungNT.EventBus
             list.Add(listener);
         }
 
-        /// <summary>Hủy đăng ký lắng nghe <typeparamref name="TEvent"/>. An toàn khi gọi ngay trong listener đang được dispatch.</summary>
         public void Unregister<TEvent>(Action<TEvent> listener) where TEvent : IEvent
         {
             if (listener == null) return;
@@ -73,7 +70,6 @@ namespace HungNT.EventBus
 
         #region === DISPATCH ===
 
-        /// <summary>Gửi event có data tới tất cả listener đã đăng ký.</summary>
         public void Dispatch<TEvent>(TEvent evt) where TEvent : IEvent
         {
             if (!_handlers.TryGetValue(typeof(TEvent), out var list)) return;
@@ -109,7 +105,6 @@ namespace HungNT.EventBus
             }
         }
 
-        /// <summary>Gửi signal event không có data.</summary>
         public void Dispatch<TEvent>() where TEvent : struct, IEvent
             => Dispatch(default(TEvent));
 
@@ -117,7 +112,6 @@ namespace HungNT.EventBus
 
         #region === UTILITIES ===
 
-        /// <summary>Xóa tất cả listener của một event type.</summary>
         public void ClearEvent<TEvent>() where TEvent : IEvent
         {
             var type = typeof(TEvent);
@@ -125,7 +119,6 @@ namespace HungNT.EventBus
             _dirtyTypes.Remove(type);
         }
 
-        /// <summary>Xóa toàn bộ listener.</summary>
         public void ClearAll()
         {
             _handlers.Clear();
@@ -133,14 +126,9 @@ namespace HungNT.EventBus
             this.Log("All listeners cleared.".Color("orange"));
         }
 
-        #endregion
-
-        #region === DEBUG / EDITOR ===
-
-        /// <summary>Snapshot tất cả listener đang đăng ký — dùng bởi EventBusEditor.</summary>
-        public List<ListenerDebugEntry> GetDebugSnapshot()
+        public List<EventBusListenerInfo> GetDebugSnapshot()
         {
-            var result = new List<ListenerDebugEntry>();
+            var result = new List<EventBusListenerInfo>();
 
             foreach (var kvp in _handlers)
             {
@@ -156,7 +144,7 @@ namespace HungNT.EventBus
                     if (!isDestroyed && d.Target is UnityEngine.Object obj)
                         registeredObj = obj;
 
-                    result.Add(new ListenerDebugEntry
+                    result.Add(new EventBusListenerInfo
                     {
                         EventName = kvp.Key.Name,
                         TargetName = d.Target != null ? d.Target.GetType().Name : "static",
@@ -168,23 +156,6 @@ namespace HungNT.EventBus
             }
 
             return result;
-        }
-
-        /// <summary>Listener entry — chỉ dùng để hiển thị trong Editor.</summary>
-        public struct ListenerDebugEntry
-        {
-            public string EventName;
-            public string TargetName;
-            public string MethodName;
-            public bool IsDestroyed;
-
-            /// <summary>Reference tới UnityEngine.Object đã đăng ký (null nếu static hoặc bị destroy).</summary>
-            public UnityEngine.Object RegisteredObject;
-
-            public override string ToString() =>
-                IsDestroyed
-                    ? $"[DESTROYED] {EventName} ← {TargetName}.{MethodName}"
-                    : $"{EventName} ← {TargetName}.{MethodName}";
         }
 
         #endregion

@@ -1,20 +1,22 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using Sirenix.OdinInspector.Editor;
+using VContainer;
+using VContainer.Unity;
 
 namespace HungNT.EventBus.Editor
 {
     /// <summary>
-    /// Custom Inspector cho EventBus.
-    /// Dùng OdinEditor nếu có Odin, fallback về IMGUI thuần nếu không.
-    /// Hiển thị live tất cả listener theo event — repaint mỗi 0.5s khi Play.
+    /// Cửa sổ debug listener của <see cref="IEventBus"/>: <b>Window → HungNT → Event Bus</b>.
+    /// <para>Trước đây đây là CustomEditor cho component EventBus. Từ khi bus là plain C# do container
+    /// tạo, nó không còn nằm trên GameObject nào — cửa sổ tự dò các <see cref="LifetimeScope"/> đang
+    /// sống và resolve bus ra từ đó.</para>
     /// </summary>
-    [CustomEditor(typeof(EventBus))]
-    public class EventBusEditor : OdinEditor
+    public class EventBusWindow : EditorWindow
     {
         private readonly Dictionary<string, bool> _foldouts = new();
         private double _lastRepaintTime;
+        private Vector2 _scroll;
 
         // Styles (lazy-init)
         private GUIStyle _headerStyle;
@@ -23,25 +25,33 @@ namespace HungNT.EventBus.Editor
         private GUIStyle _badgeStyle;
         private GUIStyle _sectionBoxStyle;
 
-        // ────────────────────────────────────────────────────────────────────
-
-        public override void OnInspectorGUI()
+        [MenuItem("Window/HungNT/Event Bus")]
+        private static void Open()
         {
-            base.OnInspectorGUI();
+            GetWindow<EventBusWindow>("Event Bus").Show();
+        }
 
-            EditorGUILayout.Space(6);
-
+        private void OnGUI()
+        {
             if (!Application.isPlaying)
             {
                 EditorGUILayout.HelpBox("Listener list available in Play Mode only.", MessageType.Info);
                 return;
             }
 
+            var bus = FindBus();
+            if (bus == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "Không tìm thấy IEventBus trong LifetimeScope nào đang chạy.\n" +
+                    "Kiểm tra scope gốc đã gọi builder.InstallEventBus() chưa.",
+                    MessageType.Warning);
+                return;
+            }
+
             InitStyles();
 
-            var dispatcher = (EventBus)target;
-            var snapshot = dispatcher.GetDebugSnapshot();
-
+            var snapshot = bus.GetDebugSnapshot();
             DrawHeader(snapshot.Count);
 
             if (snapshot.Count == 0)
@@ -50,9 +60,11 @@ namespace HungNT.EventBus.Editor
                 return;
             }
 
+            _scroll = EditorGUILayout.BeginScrollView(_scroll);
             var grouped = GroupByEvent(snapshot);
             foreach (var kvp in grouped)
                 DrawEventGroup(kvp.Key, kvp.Value);
+            EditorGUILayout.EndScrollView();
 
             // Auto-repaint mỗi 0.5s
             if (EditorApplication.timeSinceStartup - _lastRepaintTime > 0.5)
@@ -60,6 +72,22 @@ namespace HungNT.EventBus.Editor
                 _lastRepaintTime = EditorApplication.timeSinceStartup;
                 Repaint();
             }
+        }
+
+        /// <summary>Scope con resolve được bus của scope cha nên lấy kết quả khớp đầu tiên là đủ.</summary>
+        private static IEventBus FindBus()
+        {
+            var scopes = FindObjectsByType<LifetimeScope>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var scope in scopes)
+            {
+                if (scope.Container == null)
+                    continue;
+
+                if (scope.Container.TryResolve<IEventBus>(out var bus))
+                    return bus;
+            }
+
+            return null;
         }
 
         // ── Draw helpers ─────────────────────────────────────────────────────
@@ -79,7 +107,7 @@ namespace HungNT.EventBus.Editor
             EditorGUILayout.Space(8);
         }
 
-        private void DrawEventGroup(string eventName, List<EventBus.ListenerDebugEntry> listeners)
+        private void DrawEventGroup(string eventName, List<EventBusListenerInfo> listeners)
         {
             if (!_foldouts.ContainsKey(eventName))
                 _foldouts[eventName] = true;
@@ -110,7 +138,7 @@ namespace HungNT.EventBus.Editor
             EditorGUILayout.Space(2);
         }
 
-        private void DrawListenerRow(EventBus.ListenerDebugEntry entry)
+        private void DrawListenerRow(EventBusListenerInfo entry)
         {
             var style = entry.IsDestroyed ? _destroyedStyle : _listenerStyle;
             var icon = entry.IsDestroyed ? "⚠ " : "→ ";
@@ -120,10 +148,8 @@ namespace HungNT.EventBus.Editor
 
             EditorGUILayout.BeginHorizontal();
 
-            // Label listener
             EditorGUILayout.LabelField(label, style, GUILayout.MinWidth(160));
 
-            // ObjectField reference (read-only)
             using (new EditorGUI.DisabledScope(true))
             {
                 EditorGUILayout.ObjectField(
@@ -138,16 +164,16 @@ namespace HungNT.EventBus.Editor
 
         // ── Grouping ─────────────────────────────────────────────────────────
 
-        private static Dictionary<string, List<EventBus.ListenerDebugEntry>> GroupByEvent(
-            List<EventBus.ListenerDebugEntry> snapshot)
+        private static Dictionary<string, List<EventBusListenerInfo>> GroupByEvent(List<EventBusListenerInfo> snapshot)
         {
-            var grouped = new Dictionary<string, List<EventBus.ListenerDebugEntry>>();
+            var grouped = new Dictionary<string, List<EventBusListenerInfo>>();
             foreach (var entry in snapshot)
             {
                 if (!grouped.ContainsKey(entry.EventName))
-                    grouped[entry.EventName] = new List<EventBus.ListenerDebugEntry>();
+                    grouped[entry.EventName] = new List<EventBusListenerInfo>();
                 grouped[entry.EventName].Add(entry);
             }
+
             return grouped;
         }
 

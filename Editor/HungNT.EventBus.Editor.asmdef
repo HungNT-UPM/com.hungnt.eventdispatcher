@@ -3,7 +3,8 @@
     "rootNamespace": "HungNT.EventBus.Editor",
     "references": [
         "HungNT.EventBus",
-        "HungNT.Core"
+        "HungNT.Core",
+        "VContainer"
     ],
     "includePlatforms": [
         "Editor"

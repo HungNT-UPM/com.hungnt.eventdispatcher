@@ -3,7 +3,8 @@
     "rootNamespace": "HungNT.EventBus.Demo",
     "references": [
         "HungNT.EventBus",
-        "HungNT.Core"
+        "HungNT.Core",
+        "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

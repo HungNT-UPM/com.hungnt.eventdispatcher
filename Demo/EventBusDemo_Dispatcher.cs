@@ -1,31 +1,37 @@
 using UnityEngine;
+using VContainer;
 
 namespace HungNT.EventBus.Demo
 {
     /// <summary>
-    /// Demo: Dispatch events qua EventBus.
-    /// Gán vào một GameObject rồi nhấn các nút trong Inspector (Play Mode).
+    /// Demo: dispatch event qua <see cref="IEventBus"/> được inject.
+    /// Gán vào một GameObject, đăng ký bằng <c>RegisterComponentInHierarchy</c>,
+    /// rồi bấm các mục trong context menu của component (Play Mode).
     /// </summary>
     public class EventBusDemo_Dispatcher : MonoBehaviour
     {
-        // ── Cách 1: Dùng trực tiếp qua singleton ─────────────────────────────
+        private IEventBus _bus;
 
-        [ContextMenu("Dispatch OnGameStart (singleton)")]
+        [Inject]
+        public void Construct(IEventBus bus)
+        {
+            _bus = bus;
+        }
+
+        [ContextMenu("Dispatch OnGameStart")]
         public void DispatchGameStart()
-            => EventBus.Instance.Dispatch<OnGameStart>();
+            => _bus.Dispatch<OnGameStart>();
 
-        [ContextMenu("Dispatch OnGameWin (singleton)")]
+        [ContextMenu("Dispatch OnGameWin")]
         public void DispatchGameWin()
-            => EventBus.Instance.Dispatch<OnGameWin>();
+            => _bus.Dispatch<OnGameWin>();
 
-        [ContextMenu("Dispatch OnCoinChanged (singleton)")]
+        [ContextMenu("Dispatch OnCoinChanged")]
         public void DispatchCoinChanged()
-            => EventBus.Instance.Dispatch(new OnCoinChanged { OldValue = 50, NewValue = 150 });
+            => _bus.Dispatch(new OnCoinChanged { OldValue = 50, NewValue = 150 });
 
-        // ── Cách 2: Dùng Extension Methods (this.Dispatch) ────────────────────
-
-        [ContextMenu("Dispatch OnPlayerJump (extension, với data)")]
+        [ContextMenu("Dispatch OnPlayerJump")]
         public void DispatchPlayerJump()
-            => this.Dispatch(new OnPlayerJump { JumpHeight = 3.5f });
+            => _bus.Dispatch(new OnPlayerJump { JumpHeight = 3.5f });
     }
 }

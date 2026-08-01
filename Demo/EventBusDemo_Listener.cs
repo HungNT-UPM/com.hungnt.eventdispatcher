@@ -1,40 +1,40 @@
 using UnityEngine;
+using VContainer;
 
 namespace HungNT.EventBus.Demo
 {
     /// <summary>
-    /// Demo: Listener đăng ký / hủy đăng ký events.
-    /// Gán vào GameObject khác với <see cref="EventBusDemo_Dispatcher"/>,
-    /// rồi quan sát Inspector của EventBus để thấy listener live.
+    /// Demo: listener nhận <see cref="IEventBus"/> qua injection.
+    /// Gán vào GameObject khác với <see cref="EventBusDemo_Dispatcher"/>, đăng ký bằng
+    /// <c>builder.RegisterComponentInHierarchy&lt;EventBusDemo_Listener&gt;()</c>,
+    /// rồi mở <b>Window → HungNT → Event Bus</b> để xem listener live.
     /// </summary>
     public class EventBusDemo_Listener : MonoBehaviour
     {
-        // ── Cách 1: Register/Unregister thủ công qua singleton ───────────────
+        private IEventBus _bus;
 
+        [Inject]
+        public void Construct(IEventBus bus)
+        {
+            _bus = bus;
+        }
+
+        // [Inject] chạy trước OnEnable lần đầu, nhưng OnEnable còn chạy lại sau mỗi lần bật/tắt object
+        // → vẫn phải cặp Register/Unregister như cũ.
         private void OnEnable()
         {
-            EventBus.Instance.Register<OnGameStart>(OnGameStart);
-            EventBus.Instance.Register<OnGameWin>(OnGameWin);
-            EventBus.Instance.Register<OnCoinChanged>(OnCoinChanged);
+            _bus.Register<OnGameStart>(OnGameStart);
+            _bus.Register<OnGameWin>(OnGameWin);
+            _bus.Register<OnCoinChanged>(OnCoinChanged);
+            _bus.Register<OnPlayerJump>(OnPlayerJump);
         }
 
         private void OnDisable()
         {
-            EventBus.Instance.Unregister<OnGameStart>(OnGameStart);
-            EventBus.Instance.Unregister<OnGameWin>(OnGameWin);
-            EventBus.Instance.Unregister<OnCoinChanged>(OnCoinChanged);
-        }
-
-        // ── Cách 2: Register/Unregister qua Extension Methods ────────────────
-
-        private void Start()
-        {
-            this.Register<OnPlayerJump>(OnPlayerJump);
-        }
-
-        private void OnDestroy()
-        {
-            this.Unregister<OnPlayerJump>(OnPlayerJump);
+            _bus.Unregister<OnGameStart>(OnGameStart);
+            _bus.Unregister<OnGameWin>(OnGameWin);
+            _bus.Unregister<OnCoinChanged>(OnCoinChanged);
+            _bus.Unregister<OnPlayerJump>(OnPlayerJump);
         }
 
         // ── Handlers ─────────────────────────────────────────────────────────

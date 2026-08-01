@@ -2,7 +2,8 @@
     "name": "HungNT.EventBus",
     "rootNamespace": "HungNT.EventBus",
     "references": [
-        "HungNT.Core"
+        "HungNT.Core",
+        "VContainer"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
