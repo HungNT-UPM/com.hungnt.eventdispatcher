@@ -1,11 +1,7 @@
 namespace HungNT.EventBus
 {
     /// <summary>
-    /// Marker interface for all typed game events.
-    /// Define events as structs for zero-allocation dispatch:
-    /// <code>
-    /// public struct OnCoinChanged : IEvent { public int NewValue; }
-    /// </code>
+    /// Marker cho mọi event của game. Nên khai báo bằng <c>struct</c> để dispatch không sinh rác.
     /// </summary>
     public interface IEvent
     {

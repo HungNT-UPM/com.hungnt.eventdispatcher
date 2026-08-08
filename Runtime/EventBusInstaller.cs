@@ -2,20 +2,16 @@ using VContainer;
 
 namespace HungNT.EventBus
 {
-    /// <summary>Đăng ký <see cref="IEventBus"/>. Gọi trong <c>Configure</c> của LifetimeScope.</summary>
+    /// <summary>Đăng ký <see cref="IEventBusService"/>. Gọi trong <c>Configure</c> của LifetimeScope.</summary>
     public static class EventBusInstaller
     {
         /// <summary>
-        /// <paramref name="lifetime"/> mặc định <c>Singleton</c> (bus toàn ứng dụng, đặt ở scope gốc).
-        /// Truyền <c>Lifetime.Scoped</c> ở scope scene nếu muốn bus riêng cho scene đó —
-        /// listener sẽ tự biến mất cùng scene.
+        /// Mặc định <c>Singleton</c> — bus dùng chung toàn ứng dụng, đặt ở scope gốc.
+        /// Truyền <c>Lifetime.Scoped</c> ở scope scene nếu muốn listener tự biến mất cùng scene đó.
         /// </summary>
-        public static IContainerBuilder InstallEventBus(
-            this IContainerBuilder builder,
-            Lifetime lifetime = Lifetime.Singleton)
+        public static void InstallEventBus(this IContainerBuilder builder)
         {
-            builder.Register<EventBus>(lifetime).As<IEventBus>();
-            return builder;
+            builder.Register<EventBusService>(Lifetime.Singleton).As<IEventBusService>();
         }
     }
 }

@@ -4,14 +4,13 @@ using System.Collections.Generic;
 namespace HungNT.EventBus
 {
     /// <summary>
-    /// Pub/sub type-safe dùng struct event. Inject vào nơi cần thay vì gọi singleton toàn cục.
-    /// <para><b>Bus theo scope:</b> đăng ký ở scope gốc → bus toàn ứng dụng; đăng ký ở scope scene
-    /// (<c>Lifetime.Scoped</c>) → mọi listener tự biến mất khi scene unload, xoá sổ nhóm bug
-    /// "quên Unregister trong OnDestroy".</para>
+    /// Pub/sub type-safe dùng struct event.
+    /// <para>Bus sống theo scope đăng ký nó: ở scope gốc là bus toàn ứng dụng; ở scope scene
+    /// (<c>Lifetime.Scoped</c>) thì mọi listener tự biến mất khi scene unload, không cần Unregister tay.</para>
     /// </summary>
-    public interface IEventBus
+    public interface IEventBusService
     {
-        /// <summary>Đăng ký lắng nghe <typeparamref name="TEvent"/>. Register trong lúc dispatch: nhận event từ lần dispatch sau.</summary>
+        /// <summary>Đăng ký lắng nghe. Listener thêm vào giữa lúc dispatch sẽ nhận event từ lần dispatch sau.</summary>
         void Register<TEvent>(Action<TEvent> listener) where TEvent : IEvent;
 
         /// <summary>Hủy đăng ký. An toàn khi gọi ngay trong listener đang được dispatch.</summary>

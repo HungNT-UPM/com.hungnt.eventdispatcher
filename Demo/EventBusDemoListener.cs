@@ -4,37 +4,36 @@ using VContainer;
 namespace HungNT.EventBus.Demo
 {
     /// <summary>
-    /// Demo: listener nhận <see cref="IEventBus"/> qua injection.
-    /// Gán vào GameObject khác với <see cref="EventBusDemo_Dispatcher"/>, đăng ký bằng
-    /// <c>builder.RegisterComponentInHierarchy&lt;EventBusDemo_Listener&gt;()</c>,
+    /// Demo: listener nhận <see cref="IEventBusService"/> qua injection.
+    /// Gán vào GameObject khác với <see cref="EventBusDemoDispatcher"/>, đăng ký ở LifetimeScope,
     /// rồi mở <b>Window → HungNT → Event Bus</b> để xem listener live.
     /// </summary>
-    public class EventBusDemo_Listener : MonoBehaviour
+    public class EventBusDemoListener : MonoBehaviour
     {
-        private IEventBus _bus;
+        private IEventBusService _eventBus;
 
         [Inject]
-        public void Construct(IEventBus bus)
+        public void Construct(IEventBusService eventBus)
         {
-            _bus = bus;
+            _eventBus = eventBus;
         }
 
         // [Inject] chạy trước OnEnable lần đầu, nhưng OnEnable còn chạy lại sau mỗi lần bật/tắt object
         // → vẫn phải cặp Register/Unregister như cũ.
         private void OnEnable()
         {
-            _bus.Register<OnGameStart>(OnGameStart);
-            _bus.Register<OnGameWin>(OnGameWin);
-            _bus.Register<OnCoinChanged>(OnCoinChanged);
-            _bus.Register<OnPlayerJump>(OnPlayerJump);
+            _eventBus.Register<OnGameStart>(OnGameStart);
+            _eventBus.Register<OnGameWin>(OnGameWin);
+            _eventBus.Register<OnCoinChanged>(OnCoinChanged);
+            _eventBus.Register<OnPlayerJump>(OnPlayerJump);
         }
 
         private void OnDisable()
         {
-            _bus.Unregister<OnGameStart>(OnGameStart);
-            _bus.Unregister<OnGameWin>(OnGameWin);
-            _bus.Unregister<OnCoinChanged>(OnCoinChanged);
-            _bus.Unregister<OnPlayerJump>(OnPlayerJump);
+            _eventBus.Unregister<OnGameStart>(OnGameStart);
+            _eventBus.Unregister<OnGameWin>(OnGameWin);
+            _eventBus.Unregister<OnCoinChanged>(OnCoinChanged);
+            _eventBus.Unregister<OnPlayerJump>(OnPlayerJump);
         }
 
         // ── Handlers ─────────────────────────────────────────────────────────

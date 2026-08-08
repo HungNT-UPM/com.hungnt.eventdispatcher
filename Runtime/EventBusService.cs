@@ -4,12 +4,11 @@ using System.Collections.Generic;
 namespace HungNT.EventBus
 {
     /// <summary>
-    /// Implementation của <see cref="IEventBus"/> — plain C#, do container tạo và dọn.
-    /// Tự bỏ qua listener là <c>UnityEngine.Object</c> đã bị destroy khi Dispatch, không crash.
+    /// Implementation của <see cref="IEventBusService"/> — plain C#, do container tạo và dọn.
+    /// Listener là <c>UnityEngine.Object</c> đã bị destroy sẽ được bỏ qua khi dispatch thay vì gây lỗi.
     /// </summary>
-    public class EventBus : IEventBus, IDisposable
+    public class EventBusService : IEventBusService, IDisposable
     {
-        // Dùng List<Delegate> thay multicast delegate để tránh alloc trên dispatch path (không gọi GetInvocationList)
         private readonly Dictionary<Type, List<Delegate>> _handlers = new();
 
         // Unregister trong lúc đang Dispatch: null-out phần tử (không Remove — Remove làm shift index,
@@ -93,7 +92,7 @@ namespace HungNT.EventBus
                     }
                     catch (Exception ex)
                     {
-                        DebugEx.LogError($"[{nameof(EventBus)}] Exception in {d.Target?.GetType().Name}.{d.Method.Name}: {ex}");
+                        this.LogError($"Exception in {d.Target?.GetType().Name}.{d.Method.Name}: {ex}");
                     }
                 }
             }
