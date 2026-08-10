@@ -10,13 +10,7 @@ namespace HungNT.EventBus.Demo
     /// </summary>
     public class EventBusDemoListener : MonoBehaviour
     {
-        private IEventBusService _eventBus;
-
-        [Inject]
-        public void Construct(IEventBusService eventBus)
-        {
-            _eventBus = eventBus;
-        }
+        [Inject] private IEventBusService _eventBus;
 
         // [Inject] chạy trước OnEnable lần đầu, nhưng OnEnable còn chạy lại sau mỗi lần bật/tắt object
         // → vẫn phải cặp Register/Unregister như cũ.

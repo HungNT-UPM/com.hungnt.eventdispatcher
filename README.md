@@ -1,110 +1,72 @@
 # com.hungnt.eventbus
 
-Event bus type-safe cho Unity: struct implement **`IEvent`**, đăng ký/lắng nghe qua singleton **`EventBus`**, có extension trên `MonoBehaviour` và inspector Odin xem listener live.
-
-## Tính năng
-
-- **`EventBus`** — `MonoSingleton<EventBus>`
-- **`Register` / `Unregister` / `Dispatch`** — generic theo kiểu event
-- **Signal events** — struct rỗng (`Dispatch<OnGameStart>()`)
-- **Events có data** — struct chứa field (`Dispatch(new OnCoinChanged { ... })`)
-- **`EventBusExtensions`** — `this.Register`, `this.Unregister`, `this.Dispatch` trên `MonoBehaviour`
-- Editor: inspector liệt kê listener đang active (Play Mode)
+Pub/sub type-safe dùng struct event, không magic string.
 
 ## Yêu cầu
 
-- Unity 2022.3+
-- `com.hungnt.core` ≥ 1.0.6
-- Odin Inspector (optional — editor inspector gracefully disabled nếu không có)
+`com.hungnt.core` 2.0.0 và **VContainer** (cài thủ công qua Git URL — xem README của core).
 
-## Cài đặt
-
-Thêm vào `manifest.json`:
-
-```json
-{
-  "dependencies": {
-    "com.hungnt.eventbus": "1.0.7"
-  },
-  "scopedRegistries": [
-    {
-      "name": "OpenUPM",
-      "url": "https://package.openupm.com",
-      "scopes": ["com.hungnt"]
-    }
-  ]
-}
-```
-
-## Sử dụng
-
-### 1. Định nghĩa event
+## Cài đặt vào container
 
 ```csharp
-// Signal event (không có data)
-public struct OnGameStart : IEvent { }
+builder.InstallEventBus();
+```
 
-// Event có data
+Mặc định `Lifetime.Singleton`, đặt ở scope gốc là bus dùng chung toàn ứng dụng.
+
+Truyền `Lifetime.Scoped` ở scope của một scene để scene đó có bus riêng — mọi listener tự biến mất khi scene unload, xoá sổ nhóm bug quên `Unregister`:
+
+```csharp
+builder.InstallEventBus(Lifetime.Scoped);
+```
+
+## Định nghĩa event
+
+Dùng struct để dispatch không sinh rác:
+
+```csharp
 public struct OnCoinChanged : IEvent
 {
     public int OldValue;
     public int NewValue;
 }
+
+public struct OnGameStarted : IEvent { }   // signal, không mang dữ liệu
 ```
 
-### 2. Listener (MonoBehaviour)
+## Sử dụng
 
 ```csharp
-private void OnEnable()
+public class CoinLabel : MonoBehaviour
 {
-    this.Register<OnCoinChanged>(OnCoinChanged);
-}
+    [Inject] private IEventBusService _eventBus;
 
-private void OnDisable()
-{
-    this.Unregister<OnCoinChanged>(OnCoinChanged);
-}
+    private void OnEnable() => _eventBus.Register<OnCoinChanged>(HandleCoinChanged);
 
-private void OnCoinChanged(OnCoinChanged e)
-    => Debug.Log($"Coin: {e.OldValue} → {e.NewValue}");
+    private void OnDisable() => _eventBus.Unregister<OnCoinChanged>(HandleCoinChanged);
+
+    private void HandleCoinChanged(OnCoinChanged e) { }
+}
 ```
 
-### 3. Dispatch
+Dispatch:
 
 ```csharp
-// Signal
-this.Dispatch<OnGameStart>();
-
-// Event có data
-this.Dispatch(new OnCoinChanged { OldValue = 10, NewValue = 20 });
-
-// Direct (non-MonoBehaviour context)
-EventBus.Instance.Dispatch(new OnCoinChanged { OldValue = 0, NewValue = 5 });
+_eventBus.Dispatch(new OnCoinChanged { OldValue = 50, NewValue = 150 });
+_eventBus.Dispatch<OnGameStarted>();
 ```
 
-## Demo
+Component nhận inject phải được đăng ký ở scope: `builder.RegisterComponentInHierarchy<CoinLabel>();`
 
-Assembly **`HungNT.EventBus.Demo`** trong folder `Demo/`:
+## Đảm bảo an toàn
 
-| Script | Vai trò |
-|--------|---------|
-| `EventBusDemo_Dispatcher` | Gửi event (Context Menu / gọi từ code) |
-| `EventBusDemo_Listener` | Đăng ký handler trong `OnEnable` / `OnDisable` |
-| `DemoEvents.cs` | Định nghĩa `OnGameStart`, `OnCoinChanged`, … |
+- Listener là `UnityEngine.Object` đã destroy sẽ bị bỏ qua khi dispatch, không ném lỗi.
+- `Unregister` ngay trong lúc đang dispatch là an toàn: slot được null-out rồi dọn sau, listener kế tiếp không bị nhảy cóc.
+- `Register` giữa lúc dispatch sẽ nhận event từ lần dispatch kế tiếp.
+- Handler ném exception được bắt và log, không chặn các listener còn lại.
 
-**Thử nhanh:** tạo 2 GameObject, gắn `_Dispatcher` và `_Listener`, vào Play Mode → Context Menu *Dispatch …* hoặc mở inspector **`EventBus`** singleton.
+Dù vậy vẫn nên `Unregister` trong `OnDisable`/`OnDestroy` để danh sách listener không phình.
 
-## Changelog
+## Debug
 
-### v1.0.7
-- **Rename:** `com.hungnt.eventdispatcher` → `com.hungnt.eventbus`
-- **Rename:** class `EventDispatcher` → `EventBus`, namespace `HungNT.EventDispatcher` → `HungNT.EventBus`
-- **Rename:** `EventDispatcherExtensions` → `EventBusExtensions`
-- **Rename:** assembly `HungNT.EventDispatcher` → `HungNT.EventBus`
-
-### v1.0.6
-- Loại bỏ `GetInvocationList()` alloc — dùng `List<Delegate>` per type
-- `SafeInvoke` bỏ qua destroyed Unity objects
-
-### v1.0.5
-- Thêm Odin Editor inspector (live listener list trong Play Mode)
+**Window → HungNT → Event Bus** liệt kê listener đang đăng ký theo từng event, kèm cảnh báo khi có listener trỏ tới object đã destroy. Cửa sổ tự dò các `LifetimeScope` đang chạy để lấy bus nên chỉ hoạt động trong Play mode.

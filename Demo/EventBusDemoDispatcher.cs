@@ -10,13 +10,7 @@ namespace HungNT.EventBus.Demo
     /// </summary>
     public class EventBusDemoDispatcher : MonoBehaviour
     {
-        private IEventBusService _eventBus;
-
-        [Inject]
-        public void Construct(IEventBusService eventBus)
-        {
-            _eventBus = eventBus;
-        }
+        [Inject] private IEventBusService _eventBus;
 
         [ContextMenu("Dispatch OnGameStart")]
         public void DispatchGameStart()
